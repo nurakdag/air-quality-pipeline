@@ -1,0 +1,44 @@
+[0m03:33:21.670609 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'start', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001FFE5F48C20>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001FFE70B3ED0>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001FFE70B3C50>]}
+
+
+============================== 03:33:21.675146 | ee681c4b-4d48-4063-a749-4700ff2ef632 ==============================
+[0m03:33:21.675146 [info ] [MainThread]: Running with dbt=1.11.6
+[0m03:33:21.682400 [debug] [MainThread]: running dbt with arguments {'static_parser': 'True', 'no_print': 'None', 'version_check': 'True', 'target_path': 'None', 'warn_error_options': 'WarnErrorOptionsV2(error=[], warn=[], silence=[])', 'printer_width': '80', 'write_json': 'True', 'introspect': 'True', 'log_cache_events': 'False', 'empty': 'None', 'cache_selected_only': 'False', 'fail_fast': 'False', 'debug': 'False', 'log_format': 'default', 'partial_parse': 'True', 'send_anonymous_usage_stats': 'True', 'quiet': 'False', 'warn_error': 'None', 'profiles_dir': 'C:\\Users\\akdag\\.dbt', 'use_colors': 'True', 'indirect_selection': 'eager', 'invocation_command': 'dbt init air_quality', 'use_experimental_parser': 'False', 'log_path': 'logs'}
+[0m03:33:21.713167 [debug] [MainThread]: Starter project path: C:\Users\akdag\Masaüstü\air-quality-pipeline\venv\Lib\site-packages\dbt\include\starter_project
+[0m03:33:21.747518 [info ] [MainThread]: 
+Your new dbt project "air_quality" was created!
+
+For more information on how to configure the profiles.yml file,
+please consult the dbt documentation here:
+
+  https://docs.getdbt.com/docs/configure-your-profile
+
+One more thing:
+
+Need help? Don't hesitate to reach out to us via GitHub issues or on Slack:
+
+  https://community.getdbt.com/
+
+Happy modeling!
+
+[0m03:33:21.748265 [info ] [MainThread]: Setting up your profile.
+[0m03:37:28.562131 [info ] [MainThread]: Profile air_quality written to C:\Users\akdag\.dbt\profiles.yml using target's profile_template.yml and your supplied values. Run 'dbt debug' to validate the connection.
+[0m03:37:28.563446 [debug] [MainThread]: Command `dbt init` succeeded at 03:37:28.563316 after 247.15 seconds
+[0m03:37:28.563839 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'end', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001FF90C83490>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001FFE6F927B0>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001FF96928050>]}
+[0m03:37:28.564222 [debug] [MainThread]: Flushing usage events
+[0m03:37:29.931536 [debug] [MainThread]: An error was encountered while trying to flush usage events
+[0m03:43:57.924439 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'start', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x0000029CE8328C20>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x0000029CE9497ED0>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x0000029CE9497C50>]}
+
+
+============================== 03:43:57.928682 | 661cfd74-d18f-4a3b-b42f-26e5fef4c14c ==============================
+[0m03:43:57.928682 [info ] [MainThread]: Running with dbt=1.11.6
+[0m03:43:57.929258 [debug] [MainThread]: running dbt with arguments {'version_check': 'True', 'no_print': 'None', 'static_parser': 'True', 'warn_error_options': 'WarnErrorOptionsV2(error=[], warn=[], silence=[])', 'target_path': 'None', 'printer_width': '80', 'write_json': 'True', 'empty': 'False', 'log_cache_events': 'False', 'introspect': 'True', 'cache_selected_only': 'False', 'fail_fast': 'False', 'debug': 'False', 'log_format': 'default', 'profiles_dir': 'C:\\Users\\akdag\\.dbt', 'send_anonymous_usage_stats': 'True', 'quiet': 'False', 'warn_error': 'None', 'partial_parse': 'True', 'use_colors': 'True', 'indirect_selection': 'eager', 'invocation_command': 'dbt run --select stg_measurements', 'use_experimental_parser': 'False', 'log_path': 'logs'}
+[0m03:43:57.929727 [error] [MainThread]: Encountered an error:
+Runtime Error
+  No dbt_project.yml found at expected path C:\Users\akdag\Masaüstü\air-quality-pipeline\dbt_project.yml
+  Verify that each entry within packages.yml (and their transitive dependencies) contains a file named dbt_project.yml
+  
+[0m03:43:57.930413 [debug] [MainThread]: Command `dbt run` failed at 03:43:57.930311 after 0.31 seconds
+[0m03:43:57.930735 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'end', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x0000029CE935B100>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x0000029CE9373890>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x0000029CE93D88D0>]}
+[0m03:43:57.931056 [debug] [MainThread]: Flushing usage events
+[0m03:43:59.287920 [debug] [MainThread]: An error was encountered while trying to flush usage events

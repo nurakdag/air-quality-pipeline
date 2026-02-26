@@ -20,6 +20,7 @@ table_ref = f"{BQ_PROJECT}.{BQ_DATASET}.{BQ_TABLE}"
 def create_table_if_not_exists():
     schema = [
         bigquery.SchemaField("ingested_at",   "TIMESTAMP"),
+        bigquery.SchemaField("city",          "STRING"),
         bigquery.SchemaField("country_code",  "STRING"),
         bigquery.SchemaField("location_id",   "INTEGER"),
         bigquery.SchemaField("location_name", "STRING"),
