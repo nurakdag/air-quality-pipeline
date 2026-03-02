@@ -1,5 +1,7 @@
 import os
 import json
+import signal
+import sys
 from kafka import KafkaConsumer
 from google.cloud import bigquery
 from dotenv import load_dotenv
@@ -40,6 +42,16 @@ def create_table_if_not_exists():
         client.create_table(table)
         print(f"Tablo oluşturuldu: {table_ref}")
 
+def flush_batch(batch):
+    if not batch:
+        return
+    errors = client.insert_rows_json(table_ref, batch)
+    if errors:
+        print(f"[HATA] BigQuery: {errors}")
+    else:
+        print(f"[OK] {len(batch)} satır BigQuery'e yazıldı")
+    batch.clear()
+
 create_table_if_not_exists()
 
 consumer = KafkaConsumer(
@@ -53,6 +65,17 @@ consumer = KafkaConsumer(
 BATCH_SIZE = 50
 batch = []
 
+# Graceful shutdown — Ctrl+C veya kill sinyalinde son batch'i yazar
+def shutdown(signum, frame):
+    print("\n[SHUTDOWN] Son batch yazılıyor...")
+    flush_batch(batch)
+    consumer.close()
+    print("[SHUTDOWN] Consumer kapatıldı.")
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, shutdown)
+signal.signal(signal.SIGTERM, shutdown)
+
 print(f"Consumer başladı | Topic: {KAFKA_TOPIC} → BigQuery: {table_ref}")
 
 for message in consumer:
@@ -61,9 +84,4 @@ for message in consumer:
         batch.append(row)
 
     if len(batch) >= BATCH_SIZE:
-        errors = client.insert_rows_json(table_ref, batch)
-        if errors:
-            print(f"[HATA] BigQuery: {errors}")
-        else:
-            print(f"[OK] {len(batch)} satır BigQuery'e yazıldı")
-        batch = []
+        flush_batch(batch)
