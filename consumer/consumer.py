@@ -8,13 +8,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "secrets/gcp-key.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.getenv("GCP_KEY_PATH", "secrets/gcp-key.json")
 
 KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
 KAFKA_TOPIC     = os.getenv("KAFKA_TOPIC", "air_quality_raw")
-BQ_PROJECT      = "air-quality-pipeline-488422"
-BQ_DATASET      = "raw_air_quality"
-BQ_TABLE        = "air_quality_raw"
+BQ_PROJECT      = os.getenv("BQ_PROJECT", "air-quality-pipeline-488422")
+BQ_DATASET      = os.getenv("BQ_DATASET", "raw_air_quality")
+BQ_TABLE        = os.getenv("BQ_TABLE",   "air_quality_raw")
 
 client    = bigquery.Client(project=BQ_PROJECT)
 table_ref = f"{BQ_PROJECT}.{BQ_DATASET}.{BQ_TABLE}"
