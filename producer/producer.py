@@ -1,6 +1,7 @@
 import os
 import json
 import time
+import logging
 import requests
 from kafka import KafkaProducer
 from datetime import datetime, timezone, timedelta
@@ -8,12 +9,23 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S"
+)
+logger = logging.getLogger("producer")
+
+# --- Config & Validation ---
 KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
 KAFKA_TOPIC     = os.getenv("KAFKA_TOPIC", "air_quality_raw")
 OPENAQ_API_KEY  = os.getenv("OPENAQ_API_KEY")
-POLL_INTERVAL   = 900
+POLL_INTERVAL   = int(os.getenv("POLL_INTERVAL_SECONDS", "900"))
 BASE_URL        = "https://api.openaq.org/v3"
-RADIUS          = 25000
+RADIUS          = int(os.getenv("SEARCH_RADIUS_METERS", "25000"))
+
+if not OPENAQ_API_KEY:
+    raise ValueError("OPENAQ_API_KEY environment variable is required")
 
 HEADERS = {
     "X-API-Key": OPENAQ_API_KEY,
@@ -49,24 +61,30 @@ CITIES = [
     {"city": "Istanbul",      "lat": 41.0082,  "lon": 28.9784,  "country": "TR"},
 ]
 
-producer = KafkaProducer(
-    bootstrap_servers=KAFKA_BOOTSTRAP,
-    value_serializer=lambda v: json.dumps(v).encode("utf-8")
-)
+
+def create_producer() -> KafkaProducer:
+    try:
+        p = KafkaProducer(
+            bootstrap_servers=KAFKA_BOOTSTRAP,
+            value_serializer=lambda v: json.dumps(v).encode("utf-8")
+        )
+        logger.info(f"Kafka producer connected to {KAFKA_BOOTSTRAP}")
+        return p
+    except Exception as e:
+        logger.critical(f"Failed to connect to Kafka at {KAFKA_BOOTSTRAP}: {e}")
+        raise
+
 
 def get_locations_by_coords(lat: float, lon: float) -> list:
     resp = requests.get(
         f"{BASE_URL}/locations",
-        params={
-            "coordinates": f"{lat},{lon}",
-            "radius": RADIUS,
-            "limit": 10
-        },
+        params={"coordinates": f"{lat},{lon}", "radius": RADIUS, "limit": 10},
         headers=HEADERS,
         timeout=15
     )
     resp.raise_for_status()
     return resp.json().get("results", [])
+
 
 def get_sensors(location_id: int) -> list:
     resp = requests.get(
@@ -77,10 +95,14 @@ def get_sensors(location_id: int) -> list:
     resp.raise_for_status()
     return resp.json().get("results", [])
 
+
 def get_measurements(sensor_id: int, datetime_from: str, datetime_to: str) -> list:
     all_results = []
     page = 1
+
     while True:
+        resp = None
+
         for attempt in range(3):
             try:
                 resp = requests.get(
@@ -94,16 +116,35 @@ def get_measurements(sensor_id: int, datetime_from: str, datetime_to: str) -> li
                     headers=HEADERS,
                     timeout=15
                 )
+
                 if resp.status_code == 429:
-                    print(f"  [RATE LIMIT] Sensor {sensor_id}, 30 saniye bekleniyor...")
-                    time.sleep(30)
+                    # Exponential backoff on rate limit — retry same page
+                    wait = 30 * (2 ** attempt)
+                    logger.warning(
+                        f"Rate limited on sensor {sensor_id} page {page}, "
+                        f"waiting {wait}s (attempt {attempt + 1}/3)"
+                    )
+                    time.sleep(wait)
+                    resp = None
                     continue
+
                 resp.raise_for_status()
-                break
-            except requests.exceptions.HTTPError:
-                if attempt == 2:
+                break  # success — exit retry loop
+
+            except requests.exceptions.RequestException as e:
+                logger.error(
+                    f"Request error for sensor {sensor_id} page {page} "
+                    f"(attempt {attempt + 1}/3): {e}"
+                )
+                if attempt < 2:
+                    time.sleep(10 * (attempt + 1))
+                else:
+                    logger.error(f"Giving up on sensor {sensor_id} page {page}")
                     return all_results
-                time.sleep(10)
+
+        if resp is None:
+            logger.error(f"Sensor {sensor_id} page {page} exhausted all rate-limit retries, skipping")
+            return all_results
 
         data = resp.json()
         results = data.get("results", [])
@@ -117,8 +158,13 @@ def get_measurements(sensor_id: int, datetime_from: str, datetime_to: str) -> li
 
     return all_results
 
+
 def run():
-    print(f"Producer ba┼şlad─▒ | {len(CITIES)} ┼şehir | {len(TARGET_PARAMS)} parametre | Topic: {KAFKA_TOPIC}")
+    producer = create_producer()
+    logger.info(
+        f"Producer started | {len(CITIES)} cities | "
+        f"{len(TARGET_PARAMS)} parameters | Topic: {KAFKA_TOPIC}"
+    )
 
     while True:
         now = datetime.now(timezone.utc)
@@ -140,8 +186,12 @@ def run():
 
                         measurements = get_measurements(sensor["id"], datetime_from, datetime_to)
                         for m in measurements:
-                            if m.get("value") is None:
+                            value = m.get("value")
+                            measured_at = m.get("period", {}).get("datetimeTo", {}).get("utc")
+
+                            if value is None or measured_at is None:
                                 continue
+
                             msg = {
                                 "ingested_at":   now.isoformat(),
                                 "city":          city_info["city"],
@@ -152,23 +202,24 @@ def run():
                                 "longitude":     location.get("coordinates", {}).get("longitude"),
                                 "sensor_id":     sensor["id"],
                                 "parameter":     param,
-                                "value":         m.get("value"),
+                                "value":         value,
                                 "unit":          sensor.get("parameter", {}).get("units"),
-                                "measured_at":   m.get("period", {}).get("datetimeTo", {}).get("utc"),
+                                "measured_at":   measured_at,
                             }
                             producer.send(KAFKA_TOPIC, value=msg)
                             msg_count += 1
 
                 producer.flush()
-                print(f"  [{now.strftime('%H:%M:%S')}] {city_info['city']}: {msg_count} mesaj")
+                logger.info(f"[{city_info['city']}] {msg_count} messages sent")
                 total += msg_count
                 time.sleep(2)
 
             except Exception as e:
-                print(f"  [HATA] {city_info['city']}: {e}")
+                logger.error(f"[{city_info['city']}] Failed: {e}", exc_info=True)
 
-        print(f"--- Toplam: {total} mesaj | Sonraki poll: {POLL_INTERVAL//60} dk sonra ---\n")
+        logger.info(f"Poll complete | Total: {total} messages | Next poll in {POLL_INTERVAL // 60}m")
         time.sleep(POLL_INTERVAL)
+
 
 if __name__ == "__main__":
     run()
